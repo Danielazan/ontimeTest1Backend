@@ -172,12 +172,14 @@ const senndOffer = (msg) => {
         // Send the second offer
         users.send(JSON.stringify(mainMessage));
         console.log(`Second offer sent to user: ${userToCall}`);
+        isFirstOfferSent = false;
       } else {
         // Handle the first offer differently if needed
         console.log("First offer sent to user: ", userToCall);
         isFirstOfferSent = true;
       }
     }
+    console.log(isFirstOfferSent)
   });
 };
 
@@ -272,7 +274,7 @@ wsServer.on('connection', (connection, request) => {
       case "login":
         let mesg = { type: "user_joined", username: data.name };
 
-        login(mesg, ws.id, ws);
+        login(mesg, connection.id, connection);
 
         break;
 
