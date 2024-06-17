@@ -1,27 +1,23 @@
-// const express = require("express")
-// const { WebSocketServer } = require('ws')
-// const url = require('url')
-
-// const app = express();
-// const port = 4000
-
-// const server = app.listen(port, ()=>{
-//     console.log("runing on port 4000")
-// })
-
-// const websocket = new WebSocketServer({server})
-
-// websocket.on("connecton", (connection)=>{
-
-// })
 
 const http = require('http')
 const uuidv4 = require('uuid').v4
 const { WebSocketServer } = require('ws')
 const express = require('express');
+const sequelize = require('./database')
 const url = require('url')
-
+const Teams = require("./Routes/Teams")
+const cors = require("cors")
+require("dotenv").config()
 const app = express();
+app.use(express.urlencoded({ extended: false }));
+app.use(cors())
+// app.use(helmet())
+app.use(express.json())
+app.use(express.static("public"))
+
+
+app.use("/api",Teams)
+
 const server = http.createServer(app);
 
 const wsServer = new WebSocketServer({ server })
@@ -33,13 +29,15 @@ let messagess = {}
 const rooms = new Map();
 const clients = new Map();
 
+const Rooms=[]
+
 const broadcast = (ws, msg, roomId) => {
   // Iterate through connections in the specified room
   for (const connection of rooms.get(roomId) || []) {
     // Send message only to connections in the same room (excluding sender)
     if (connection !== ws) {
       // connection.send(JSON.stringify(msg));
-      connection.send(JSON.stringify({ type: 'incoming_Message', roomId,msg }));
+      connection.send(JSON.stringify({ type: 'incoming_Message', roomId,message:msg }));
     }
   }
   console.log('Message sent to room:', roomId);
@@ -49,6 +47,22 @@ function createRoom(ws, roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, new Set());
   }
+  // rooms.get(roomId).add(ws);
+  // ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
+
+  console.log(ws)
+}
+
+function createRoom(ws, roomId) {
+  if (!Rooms) {
+    Rooms=[]
+  }
+
+  Rooms.push(
+    {
+      Name:roomId
+    }
+  )
   // rooms.get(roomId).add(ws);
   // ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
 
@@ -183,6 +197,35 @@ const senndOffer = (msg) => {
   });
 };
 
+const senndVOffer = (msg) => {
+  
+  console.log("User to call:", msg.name);
+
+  userToCall = msg.name;
+
+  mainMessage = {
+    type: "V-offer",
+    offer: msg.offer,
+    caller: msg.caller
+  };
+
+  connections.map((users) => {
+    if (users.id == userToCall) {
+      if (isFirstOfferSent) {
+        // Send the second offer
+        users.send(JSON.stringify(mainMessage));
+        console.log(`Second offer sent to user: ${userToCall}`);
+        isFirstOfferSent = false;
+      } else {
+        // Handle the first offer differently if needed
+        console.log("First offer sent to user: ", userToCall);
+        isFirstOfferSent = true;
+      }
+    }
+    console.log(isFirstOfferSent)
+  });
+};
+
 const Answer =(msg)=>{
   console.log("to call",msg.name)
 
@@ -284,6 +327,12 @@ wsServer.on('connection', (connection, request) => {
 
         break;
 
+        case "V-offer":
+          senndVOffer(data);
+          
+  
+          break;
+
       case "answer":
         Answer(data);
         
@@ -310,7 +359,9 @@ wsServer.on('connection', (connection, request) => {
 
 
 
-
-server.listen(8000, () => {
-  console.log('WebSocket server connected on port 8000')
+sequelize.sync().then(()=>{
+  server.listen(process.env.PORT,(req,res)=>{
+      console.log(`Listening at port ${process.env.PORT} websocket also connected`)
+  })
 })
+
