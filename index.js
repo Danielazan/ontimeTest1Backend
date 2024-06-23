@@ -1,35 +1,33 @@
-
-const http = require('http')
-const uuidv4 = require('uuid').v4
-const { WebSocketServer } = require('ws')
-const express = require('express');
-const sequelize = require('./database')
-const url = require('url')
-const Teams = require("./Routes/Teams")
-const cors = require("cors")
-require("dotenv").config()
+const http = require("http");
+const uuidv4 = require("uuid").v4;
+const { WebSocketServer } = require("ws");
+const express = require("express");
+const sequelize = require("./database");
+const url = require("url");
+const Teams = require("./Routes/Teams");
+const cors = require("cors");
+require("dotenv").config();
 const app = express();
 app.use(express.urlencoded({ extended: false }));
-app.use(cors())
+app.use(cors());
 // app.use(helmet())
-app.use(express.json())
-app.use(express.static("public"))
+app.use(express.json());
+app.use(express.static("public"));
 
-
-app.use("/api",Teams)
+app.use("/api", Teams);
 
 const server = http.createServer(app);
 
-const wsServer = new WebSocketServer({ server })
+const wsServer = new WebSocketServer({ server });
 
-const connections = []
+const connections = [];
 
-let messagess = {}
+let messagess = {};
 
 const rooms = new Map();
 const clients = new Map();
 
-const Rooms=[]
+const Rooms = [];
 
 const broadcast = (ws, msg, roomId) => {
   // Iterate through connections in the specified room
@@ -37,11 +35,13 @@ const broadcast = (ws, msg, roomId) => {
     // Send message only to connections in the same room (excluding sender)
     if (connection !== ws) {
       // connection.send(JSON.stringify(msg));
-      connection.send(JSON.stringify({ type: 'incoming_Message', roomId,message:msg }));
+      connection.send(
+        JSON.stringify({ type: "incoming_Message", roomId, message: msg })
+      );
     }
   }
-  console.log('Message sent to room:', roomId);
-}
+  console.log("Message sent to room:", roomId);
+};
 
 function createRoom(ws, roomId) {
   if (!rooms.has(roomId)) {
@@ -50,23 +50,21 @@ function createRoom(ws, roomId) {
   // rooms.get(roomId).add(ws);
   // ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
 
-  console.log(ws)
+  console.log(ws);
 }
 
 function createRoom(ws, roomId) {
   if (!Rooms) {
-    Rooms=[]
+    Rooms = [];
   }
 
-  Rooms.push(
-    {
-      Name:roomId
-    }
-  )
+  Rooms.push({
+    Name: roomId,
+  });
   // rooms.get(roomId).add(ws);
   // ws.send(JSON.stringify({ type: 'roomCreated', roomId }));
 
-  console.log(ws)
+  console.log(ws);
 }
 
 function joinRoom(ws, roomId, id) {
@@ -84,26 +82,27 @@ function joinRoom(ws, roomId, id) {
   rooms.get(roomId).add(ws);
 
   // Send joinedRoom message to the joining client
-  ws.send(JSON.stringify({ type: 'joinedRoom', roomId }));
+  ws.send(JSON.stringify({ type: "joinedRoom", roomId }));
 
   // Send newPeer messages to other clients, excluding the joining client
   for (const client of rooms.get(roomId)) {
-    
     if (client !== ws) {
-      client.send(JSON.stringify({ type: 'newPeer', clientId: ws.id }));
+      client.send(JSON.stringify({ type: "newPeer", clientId: ws.id }));
     }
-    
+
     // console.log(client)
 
-    console.log("this is the websocket id",ws.id)
+    console.log("this is the websocket id", ws.id);
   }
 }
 
 function leaveRoom(ws, roomId) {
   if (rooms.has(roomId)) {
     rooms.get(roomId).delete(ws);
-    otherClientsInRoom(roomId, ws).forEach(client => {
-      client.send(JSON.stringify({ type: 'peerDisconnected', clientId: ws.id }));
+    otherClientsInRoom(roomId, ws).forEach((client) => {
+      client.send(
+        JSON.stringify({ type: "peerDisconnected", clientId: ws.id })
+      );
     });
   }
 }
@@ -166,10 +165,8 @@ const login = (msg, user, ws) => {
 //   });
 // };
 
-
 let isFirstOfferSent = false;
 const senndOffer = (msg) => {
-  
   console.log("User to call:", msg.name);
 
   userToCall = msg.name;
@@ -177,7 +174,7 @@ const senndOffer = (msg) => {
   mainMessage = {
     type: "offer",
     offer: msg.offer,
-    caller: msg.caller
+    caller: msg.caller,
   };
 
   connections.map((users) => {
@@ -193,12 +190,11 @@ const senndOffer = (msg) => {
         isFirstOfferSent = true;
       }
     }
-    console.log(isFirstOfferSent)
+    console.log(isFirstOfferSent);
   });
 };
 
 const senndVOffer = (msg) => {
-  
   console.log("User to call:", msg.name);
 
   userToCall = msg.name;
@@ -206,7 +202,7 @@ const senndVOffer = (msg) => {
   mainMessage = {
     type: "V-offer",
     offer: msg.offer,
-    caller: msg.caller
+    caller: msg.caller,
   };
 
   connections.map((users) => {
@@ -222,22 +218,20 @@ const senndVOffer = (msg) => {
         isFirstOfferSent = true;
       }
     }
-    console.log(isFirstOfferSent)
+    console.log(isFirstOfferSent);
   });
 };
 
-const Answer =(msg)=>{
-  console.log("to call",msg.name)
+const Answer = (msg) => {
+  console.log("to call", msg.name);
 
-  const ToAns = msg.name
+  const ToAns = msg.name;
 
+  const message = {
+    type: "answer",
+    answer: msg.answer,
+  };
 
-  const message={ 
-    type: "answer", 
-    answer: msg.answer 
-  }
-
-  
   connections.map((users) => {
     if (users.id == ToAns) {
       users.send(JSON.stringify(message));
@@ -245,17 +239,15 @@ const Answer =(msg)=>{
       console.log(`annser sent to user: ${ToAns}`);
     }
   });
-}
+};
 
-const icecandidate = (msg)=>{
-
-  const message={
+const icecandidate = (msg) => {
+  const message = {
     type: "candidate",
     candidate: msg.candidate,
     from: msg.name,
-  }  
-      
-    
+  };
+
   connections.map((users) => {
     if (users.id == msg.name) {
       users.send(JSON.stringify(message));
@@ -264,55 +256,67 @@ const icecandidate = (msg)=>{
     }
   });
 
-  console.log("candiates=======>",msg.name)
-}
+  console.log("candiates=======>", msg.name);
+};
 
+const chatMessages = (msg) => {
+  const message = {
+    type: "incoming_Message",
+    roomId: msg.roomId,
+    message: msg.message,
+  };
 
-const chatMessages=(msg)=>{
-  console.log(msg)
-}
+  connections.map((users) => {
+    if (users.id == msg.To) {
+      users.send(JSON.stringify(message));
 
-wsServer.on('connection', (connection, request) => {
-  const { userName } = url.parse(request.url, true).query
+      console.log(`candiate sent to user: ${msg.name}`);
+    }
+  });
 
-  const uuid = uuidv4()
+  console.log("This the person am sending the message to", msg.To);
+};
 
-  console.log(userName)
-  connection.id=userName
+wsServer.on("connection", (connection, request) => {
+  const { userName } = url.parse(request.url, true).query;
+
+  const uuid = uuidv4();
+
+  console.log(userName);
+  connection.id = userName;
 
   // connections[userName] = connection
-  connections.push(connection)
+  connections.push(connection);
 
   // console.log(connections)
 
-  connection.on('message', function incoming (message) {
+  connection.on("message", function incoming(message) {
     // console.log('received: %s', message);
 
     // broadcast(message)
-
 
     const data = JSON.parse(message);
     console.log("Received message:", data);
 
     // const { type, payload, roomId } = data;
 
-
     // connection.id=userName
 
     // console.log(type)
 
     switch (data.type) {
-      case 'JoinRoom':
+      case "JoinRoom":
         joinRoom(connection, data.roomId, connection.id);
         // console.log("data or message recieved is", data.roomId)
         break;
-      case 'CreateRoom':
+      case "CreateRoom":
         createRoom(connection, roomId);
         break;
       case "chat_message":
-        mes= data.message
-        console.log("chat message=====",mes)
-        broadcast(connection,mes, data.roomid)
+        mes = data.message;
+        console.log("chat message=====", mes);
+        // broadcast(connection,mes, data.roomid)
+        chatMessages(data);
         break;
       case "login":
         let mesg = { type: "user_joined", username: data.name };
@@ -323,45 +327,38 @@ wsServer.on('connection', (connection, request) => {
 
       case "offer":
         senndOffer(data);
-        
 
         break;
 
-        case "V-offer":
-          senndVOffer(data);
-          
-  
-          break;
+      case "V-offer":
+        senndVOffer(data);
+
+        break;
 
       case "answer":
         Answer(data);
-        
+
         break;
 
-        
       case "candidate":
+        icecandidate(data);
 
-        icecandidate(data)
-        
         break;
       case "leave":
-          delete clients[ws.remoteAddress];
-          broadcast({ type: "user_left", username: data.name });
-          break;
-      
-     default:
-        console.log('Invalid messa ge type');
+        delete clients[ws.remoteAddress];
+        broadcast({ type: "user_left", username: data.name });
+        break;
+
+      default:
+        console.log("Invalid messa ge type");
     }
+  });
+});
 
-    
-  })
-})
-
-
-
-sequelize.sync().then(()=>{
-  server.listen(process.env.PORT,(req,res)=>{
-      console.log(`Listening at port ${process.env.PORT} websocket also connected`)
-  })
-})
-
+sequelize.sync().then(() => {
+  server.listen(process.env.PORT, (req, res) => {
+    console.log(
+      `Listening at port ${process.env.PORT} websocket also connected`
+    );
+  });
+});
